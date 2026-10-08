@@ -1,66 +1,16 @@
 # ComfyUI-Plugin
 
-> 给 Yunzai 用的 **ComfyUI 绘图插件**：文生图 / 图生图 / 文生视频，工作流驱动，配置可以在锅巴后台点着填。
+给 Yunzai 用的 **ComfyUI 绘图插件**。文生图 / 图生图 / 文生视频，全部走你自己搭好的 ComfyUI 工作流。
 
-基于 Yunzai 的 AI 绘图插件，使用 **ComfyUI** 接口（工作流驱动）。
-写法与目录结构完全沿用 [erzaozi/sd-plugin](https://github.com/erzaozi/sd-plugin)，
-所以如果你之前用过 sd-plugin，配置和命令习惯基本不用改。
+## 特点
 
-**功能一览**
-
-- 文生图 / 图生图 / 改图 / **文生视频**（含带音频的视频模型），全部走你自己的 ComfyUI 工作流
-- `#重绘`：复用上次的提示词和参数再画一张，支持临时改参数
-- `--ratio 16:9` 画面比例：自动对接 ComfyUI 的 `ResolutionSelector` 节点
-- 指令结果都渲染成**图片卡片**（帮助 / 列表 / 参数回执）
-- **锅巴（Guoba）后台**可视化配置，不用手写 yaml
-- **群聊 / 私聊使用白名单**，不在名单里的完全不响应
-- 兼容 sd-plugin 的 `--参数` 写法，老的默认参数能直接搬过来
-
----
-
-## 和 sd-plugin 的区别
-
-| | sd-plugin（SD WebUI） | 本插件（ComfyUI） |
-|---|---|---|
-| 调用方式 | `POST /sdapi/v1/txt2img`，一次请求带全部参数 | `POST /prompt` 提交一张**工作流图** → 轮询 `/history` → `/view` 取图 |
-| 出图由谁决定 | 后端固定的 txt2img 流程 | **你的工作流**：想加 LoRA、放大、改图、出视频都行 |
-| 参数怎么传 | 直接放进请求体 | 插件按节点**注入**到工作流模板里 |
-| 换模型 | `--model` 直接切 checkpoint | 换 `--model`，或整套换 `--workflow` |
-
-一句话：ComfyUI 不给"一次性参数接口"，所以插件多了一层**工作流模板 + 参数注入**。
-
----
-
-## 锅巴（Guoba）后台配置 ✅
-
-插件已适配 [Guoba-Plugin](https://github.com/guoba-yunzai/guoba-plugin)：
-装了锅巴的话，云崽后台会多出 **「ComfyUI 绘图」** 一页，41 个配置项分 5 组，
-直接在网页上改，不用再去编辑 yaml。
-
-| 分组 | 内容 |
-|---|---|
-| ComfyUI 接口 | 2 个地址位（含账号密码）、用第几个 |
-| 工作流与运行 | 默认工作流（**下拉选择**，自动列出 workflows 里的 json）、查询间隔、超时、进度提醒、附参数 |
-| 默认绘图参数 | 负向提示词、步数、CFG、宽高、张数、重绘幅度、采样器、底模、LoRA… |
-| 高级：节点定位 | 7 个节点 id 覆盖位（一般留空） |
-| 翻译与内容审核 | 百度翻译 appid/key、审核开关与地址 |
-
-细节说明：
-
-- 备用地址留空保存时会**自动清理掉**，不会留下空条目
-- 默认绘图参数留空 = **删除这一项**（所以想让某个参数回到"工作流原本的值"，清空即可）
-- 密码框用的是 `InputPassword`，不会明文显示
-- 没装锅巴也完全不影响，`guoba.support.js` 不会被云崽加载
-- 自检：`node _guoba_test.mjs`（模拟锅巴前端读/存一遍，不连 ComfyUI）
-
-> ⚠️ 改这个文件时有个坑：锅巴前端回填表单用的是 `eval('values' + '.' + 字段名)`，
-> 所以 `field` **不能写成 `api_list.0.baseurl` 这种"带点的数字下标"**——
-> `values.api_list.0.baseurl` 在 JS 里是语法错误，那个框会永远空白，
-> 保存还会把空值写回去。地址这类数组配置要拍平成 `api_1_baseurl` 这种名字
-> （`getConfigData` / `setConfigData` 里已经在数组和这几个平铺字段之间来回转换）。
-> 两段式的 `draw.steps`、`node_map.positive` 是没问题的。
-
----
+- **工作流驱动**：LoRA、放大、改图、视频都行，一句话换工作流（`--workflow`）
+- **`#重绘`**：复用上次的提示词和参数再来一张
+- **`--ratio 16:9`**：画面比例，自动对接 ComfyUI 的 `ResolutionSelector` 节点
+- 指令结果全部渲染成**图片卡片**
+- **锅巴后台**可视化配置，不用手写 yaml
+- **群聊 / 私聊白名单**，名单外的完全不响应
+- `--参数` 写法兼容 [sd-plugin](https://github.com/erzaozi/sd-plugin)，老配置能直接搬
 
 ## 安装
 
@@ -69,229 +19,45 @@ cd <你的 Yunzai 目录>/plugins
 git clone https://github.com/jiurag/ComfyUI-Plugin.git comfyui-plugin
 ```
 
-（不想用 git 就把整个文件夹复制进 `plugins/`，文件夹名保持 `comfyui-plugin`。）
+重启 Yunzai，然后把 `config/config/config.yaml` 里的 `api_list` 改成你的 ComfyUI 地址
+（首次启动会自动生成这个文件）。
 
-然后：
+需要 Node ≥ 18；`axios`、`yaml` 云崽本体已经带了，不用 `npm install`。
 
-1. 重启 Yunzai
-2. 编辑 `config/config/config.yaml`，把 `api_list` 改成你的 ComfyUI 地址
-   （首次启动会自动从 `config/config_default.yaml` 生成这个文件）
-3. 想自检：在插件目录执行 `node _selftest.mjs`（不经过 QQ，直接出一张图）
+## 常用命令
 
-> 装了锅巴的话，第 3 步可以改成在锅巴后台点着填，见上一节。
-> 想限制谁能用：#开启绘图白名单 + #添加绘图白名单 本群
-
-需要 Node ≥ 18（用到内置 fetch/FormData）。依赖 `axios`、`yaml` —— Yunzai 本体已经带了。
-
----
-
-## 命令
-
-| 命令 | 说明 |
+| 命令 | 作用 |
 |---|---|
-| `#绘图帮助` | **查看帮助菜单**（也支持 `#绘画帮助` / `#comfyui帮助`） |
-| `#绘图 一只戴帽子的猫` | 文生图（也支持 `#咏唱` `#draw` `#画画`） |
-| `#绘图 一只猫 --steps 8 --size 1024x1024 --seed 123` | 带参数的文生图 |
-| （引用一张图）`#改图 把背景换成雪天` | 图生图 / 改图 |
-| `#重绘` | **复用上次的提示词和参数再画一张**（种子重新随机，所以是新图） |
-| `#重绘 --steps 12` | 复用上次的，只临时改几个参数 |
-| `#重绘 换成雪天` | 复用上次的参数，只换提示词 |
-| `#上次提示词` | 看看上次这张用的是什么提示词 |
-| `#忘记上次绘图` | 清掉本群/本人的记录 |
-| `#添加默认参数 --steps 8 --negative "bad hands"` | 追加默认参数 |
-| `#删除默认参数 --steps` | 删除某项默认参数 |
-| `#查看默认参数` | 查看当前默认参数 |
-| `#工作流列表` | 列出 `config/workflows/` 里的模板，**带序号**，当前用的那个会标 `← 当前使用` |
-| `#用工作流 3` | **按序号**切换默认工作流（也支持写名字，仅主人） |
-| `#绘画队列` | 看 ComfyUI 队列 |
-| `#取消绘画` | 中断当前任务（仅主人） |
-| `#模型列表` / `#lora列表` | 列出底模 / LoRA |
-| `#绘图白名单` | 看允许使用的群 / 私聊名单和开关状态 |
-| `#开启绘图白名单` / `#关闭绘图白名单` | 开了以后只有名单里的群 / 人能用（仅主人） |
-| `#添加绘图白名单 本群` | 把当前群加进白名单（仅主人） |
-| `#删除绘图白名单 群 123456` | 从白名单里移除（仅主人） |
+| `#绘图帮助` | 完整帮助菜单 |
+| `#绘图 一只戴帽子的猫` | 文生图 |
+| （引用图片）`#改图 换成雪天` | 图生图 / 改图 |
+| `#重绘` | 复用上次的提示词再画一张 |
+| `#工作流列表` / `#用工作流 3` | 看 / 切换工作流 |
+| `#绘画队列` / `#取消绘画` | 看队列 / 中断当前任务 |
+| `#绘图白名单` | 限制谁能用（仅主人） |
 
-命令里 `--key value` 的写法和 sd-plugin 完全一致，所以老的默认参数能直接搬过来。
-
-### 重绘是怎么记的
-
-每次**成功出图**后，插件会把这次的提示词和参数记一笔，存在
-`resources/tmp/last_draw.json`（不依赖 redis，机器人重启也不丢）。
-群聊按群记、私聊按人记，保留 12 小时，最多 300 条，过期的自动清。
-
-- `#重绘` 会把种子去掉重新随机——不然出来的是同一张图
-- 想复现同一张，加 `--seed 上次的种子`（种子在参数回执卡片里）
-- 上次是图生图的话，重绘会复用当时上传的那张参考图（ComfyUI 的 input 目录里还在的前提下）
-- 上次用的工作流也会一起记住，所以换过默认工作流之后再 `#重绘`，出来的还是当时那套的味儿
-
-### 画面比例（--ratio）
-
-ComfyUI 里那个 `ResolutionSelector` 节点（画面比例 + 总像素 + 对齐倍数）插件也接上了。
-写简写就行，插件负责补成节点认识的完整名字：
+常用参数，跟在提示词后面：
 
 ```text
-#绘图 一只猫 --ratio 16:9                     → 16:9 (Widescreen)
-#绘图 一只猫 --ratio 9:16                     → 9:16 (Portrait Widescreen)
-#绘图 一只猫 --ratio 21:9 --megapixels 2      → 21:9，2 百万像素
-#绘图 一只猫 --比例 3:4                        → 中文参数名也认
+--size 1024x1024   --ratio 16:9   --steps 8   --seed 12345
+--batch_size 2     --model 模型名.safetensors   --lora "LoRA名"   --workflow 3
 ```
 
-两种工作流都能处理：
+## 接自己的工作流
 
-- **带 `ResolutionSelector` 的**（`krea2-t2i`、`minimax-h3-t2v`、`minimax-h3-i2v`）：
-  把比例和总像素直接交给这个节点，宽高由它自己算并对齐，最准
-- **不带这个节点的**（`z-image-turbo`、`qwen-image-*`、`wan2.2-5b-video`、`minimax-h3-ref`）：
-  插件按「比例 + 总像素」算好宽高写进 `EmptyLatentImage` 这类节点；
-  没写 `--megapixels` 就沿用画布原本的像素总量（z-image 的 1024×1024 → 16:9 得 1344×768）
+ComfyUI 里调好 → 菜单「工作流 → 导出(API)」→ 把 json 放进 `config/workflows/`，
+文件名就是工作流名，然后 `#用工作流 名字` 切过去。插件会顺着 KSampler 的连线
+自己找提示词 / 尺寸 / 模型节点，认不出来再填 `node_map`。
 
-优先级：`--size` / `--width` / `--height`（写死尺寸）> `--ratio`（按比例算），两个都写以尺寸为准。
+## 自检
 
-> 例外：`qwen-image-edit-2509` 这类改图工作流，画布跟输入图片走（节点里读 `GetImageSize`），
-> 所以 `--ratio` 对它不生效。
-
-### 使用白名单（只有名单里的群 / 人能用）
-
-默认是**关**的（谁都能用）。开了以后：
-
-- **群聊**只看 `whitelist.groups`，名单外的群发任何绘图指令都会被拦下
-- **私聊**只看 `whitelist.users`，名单外的人一样被拦
-- **机器人主人始终放行**，所以不会出现"把自己锁在外面"
-- **默认完全不理**（`whitelist.reply: false`）：名单外的群 / 人发绘图指令就像机器人没收到一样，
-  一声不吭。拦截时返回的是 `false`（"这条消息我不管"），所以**别的插件完全不受影响**，
-  该干嘛干嘛
-- 想排查"到底哪个群被拦了"，把它打开（`whitelist.reply: true` 或 `#绘图白名单 提示`），
-  被拦时会回一句「本群（群号）还没开通绘图功能」——带着群号，方便复制去加名单
-
-管理方式有两个，随便用哪个：
-
-```text
-#绘图白名单                  看当前设置（卡片）
-#绘图白名单 静默 / 提示       被拦下时完全不回复 / 回一句带群号的提示
-#开启绘图白名单 / #关闭绘图白名单
-#添加绘图白名单 本群          也可以：#添加绘图白名单 群 123456
-#添加绘图白名单 @某人         （群里 @ 一下，直接加进私聊白名单）
-#删除绘图白名单 群 123456
+```bash
+node _selftest.mjs "一只猫" krea2-t2i     # 不经过 QQ，直接出一张图
 ```
 
-或者去锅巴的「使用白名单」那一组里填（群号 / QQ 一行一个）。
+## 更多
 
-> 实现上是在基类 `utils/base.js` 里给**每一条命令**套了一层检查，
-> 所以以后新增命令会自动受白名单约束，不用再单独改。
+- [安装步骤.txt](安装步骤.txt) —— 第一次装看这个
+- [docs/详细说明.md](docs/详细说明.md) —— 参数详解、画面比例、重绘记录、白名单、锅巴适配、故障排查
 
-### 指令结果都是图片卡片
-
-帮助、工作流列表、默认参数、绘画队列、模型列表、出图参数回执，全部走渲染器画成图片卡片
-（模板 `resources/help/help.html`，深绿主题）。万一渲染器出问题，会自动回退成合并转发文字，不会没有回应。
-
-工作流列表里的序号，可以直接拿来切换：
-
-```text
-#工作流列表          → 看编号，比如 5 是 qwen-image-20step
-#用工作流 5          → 以后默认用它
-#绘图 一只猫 --workflow 5   → 只这一次用它
-```
-
-### 支持的参数
-
-| 参数 | 说明 |
-|---|---|
-| （正文） | 提示词 |
-| `--prompt "..."` | 提示词（会覆盖正文） |
-| `--negative "..."` | 负向提示词 |
-| `--size 1024x768` | 宽 x 高 |
-| `--width` / `--height` | 也可以分开写 |
-| `--ratio 16:9` | **画面比例**（也支持 `--ar` / `--比例`）：`1:1` `2:3` `3:2` `3:4` `4:3` `9:16` `16:9` `21:9` |
-| `--megapixels 1` | 画面总像素，配合 `--ratio` 用（越大越清晰、越慢） |
-| `--steps` / `--cfg` | 采样步数 / CFG |
-| `--seed` | 随机种子，不填或 -1 就随机 |
-| `--sampler_name` / `--scheduler` | 采样器 / 调度器 |
-| `--denoise` | 重绘幅度（图生图常用） |
-| `--batch_size` | 一次出几张 |
-| `--model` | 换底模（填 ComfyUI 里显示的文件名） |
-| `--lora` / `--lora_strength` | 换 LoRA / 强度 |
-| `--workflow` | 本次改用哪个工作流模板 |
-
----
-
-## 怎么把自己调好的 ComfyUI 工作流接进来
-
-1. 在 ComfyUI 里把工作流调到满意
-2. 菜单 **工作流 → 导出(API)**，得到一个 json
-3. 把这个 json 放到 `config/workflows/`，文件名就是工作流名（例如 `krea2.json`）
-4. 两种用法：`#用工作流 krea2` 设成默认，或 `#绘图 xxx --workflow krea2` 临时用
-
-### 插件怎么找到要替换的节点
-
-按这个顺序（从稳到糙），一般什么都不用配：
-
-1. **`config.yaml` 的 `node_map`** 手工指定节点 id —— 最稳
-2. **顺着 KSampler 的 `positive` / `negative` 连线反查** —— 只要工作流是正常的采样结构就能认出来
-3. **按节点标题猜**：`_meta.title` 里有「正向 / 负向 / positive / negative」就认
-
-底模找 `UNETLoader` / `CheckpointLoaderSimple`，
-LoRA 找 `LoraLoaderModelOnly` / `LoraLoader`，
-尺寸找 `Empty*Latent*` 或 `Wan22ImageToVideoLatent`，
-输入图片找 `LoadImage`。
-
-> 如果导出时带了 `_meta`（ComfyUI 默认会带），在 ComfyUI 里给节点改个中文标题，
-> 插件识别起来更准。没识别到就填 `node_map`。
-
-### 自带的工作流模板（都是本机 ComfyUI 实测导出的）
-
-序号就是 `#工作流列表` 里显示的编号，可以直接 `#用工作流 3` 这样切：
-
-| 序号 | 模板 | 用途 | 用到的模型 |
-|---|---|---|---|
-| 1 | `krea2-t2i` | 文生图，Turbo 8 步 | velvetmuseKrea2Turbo_v30_fp8_2 + qwen3vl_4b_fp8_scaled + qwen_image_vae + MJCN_Style |
-| 2 | `minimax-h3-i2v` | 图 / 首尾帧生视频（带音频） | minimax_h3_fl2va_pruned_int8_convrot + qwen3vl_32b_minimax_h3_nvfp4_awq |
-| 3 | `minimax-h3-ref` | 参考图生视频（带音频） | minimax_h3_ref2va_pruned_int8_convrot + qwen3vl_32b |
-| 4 | `minimax-h3-t2v` | 文生视频（带音频） | 和 2 同一个底模，只是走纯文生视频的连线 |
-| 5 | `qwen-image-20step` | 文生图，20 步 | qwen_image_fp8_e4m3fn + qwen_2.5_vl_7b_fp8_scaled + qwen_image_vae |
-| 6 | `qwen-image-edit-2509` | 图生图 / 改图，4 步加速 | qwen_image_edit_2509_fp8_e4m3fn + qwen_2.5_vl_7b_fp8_scaled |
-| 7 | `qwen-image-t2i` | 文生图，8 步 Lightning 加速 | 和 5 同一个底模，只是挂 Lightning LoRA、步数更少 |
-| 8 | `wan2.2-5b-video` | 文生视频 | wan2.2_ti2v_5B_fp16 + umt5_xxl_fp8_e4m3fn_scaled + wan2.2_vae |
-| 9 | `z-image-turbo` | 文生图，8 步 | z_image_turbo_int8_convrot + qwen_3_4b + ae + NexBlend11ZIT |
-
-序号按名字排序，加了新 json 之后序号会往后排，记得重新 `#工作流列表` 看一眼。
-不需要的模板直接删掉对应的 json 就行，插件只认这个目录里有什么。
-
----
-
-## 配置项（config/config.yaml）
-
-```yaml
-api_list:                 # 可以配多个 ComfyUI
-  - baseurl: "http://127.0.0.1:8188"
-    username: ""          # 如果 ComfyUI 前面挂了认证（比如隧道闸门）就填这里
-    password: ""
-use_api: 0                # 0 = 随机挑一个；1 = 固定用第 1 个
-workflow: "z-image-turbo" # 默认工作流模板
-node_map: {}              # 节点定位覆盖（一般留空）
-poll_interval: 2          # 秒：多久查一次是否出图
-timeout: 900              # 秒：最长等多久
-notify_interval: 60       # 秒：群里多久报一句"还在生成"（0 = 不打扰）
-reply_params: true        # 出图后附上本次参数
-translate: { appid: "", appkey: "" }   # 百度翻译，不填就用原文
-nsfw_check: { enable: false, url: "" } # 内容检查，默认关闭
-```
-
----
-
-## 常见问题
-
-**连不上 ComfyUI**
-插件和 ComfyUI 不在同一台机器时，`baseurl` 要写能访问到的地址（局域网 IP 或隧道域名）。
-注意 ComfyUI 启动时要带 `--listen 0.0.0.0`，否则只有本机能连。
-
-**找不到工作流模板**
-报错里会列出 `config/workflows/` 现有的名字。注意文件名不要带 `.json`。
-
-**出图很慢**
-先看是不是排在别人后面（`#绘画队列`）。ComfyUI 是单队列串行，前面的任务跑完才轮到你。
-
-**想要视频**
-工作流末尾放 `SaveVideo` / `SaveAnimatedWEBP` 也一样能取回来，
-插件会自动识别扩展名并用视频/动图的方式发出去。
-
-**多个 ComfyUI 负载均衡**
-`api_list` 里多写几个，`use_api: 0` 就是每次随机挑一个。
+许可：ISC
