@@ -149,6 +149,55 @@ export function buildPrompt(template, params = {}, nodeMap = {}) {
     put('length', params.length !== undefined ? Number(params.length) : undefined)
   }
 
+  const alignTo = (raw, step, rem) => raw + ((((rem - (raw % step)) % step) + step) % step)
+  const alignFrames = (raw, cur) => {
+    const loader = ids.map((id) => graph[id]).find((n) => /UNETLoader|CheckpointLoaderSimple/.test(String(n?.class_type || '')))
+    const model = String(loader?.inputs?.unet_name || loader?.inputs?.ckpt_name || '')
+    if (/minimax/i.test(model)) return alignTo(raw, 17, 5)
+    if (/wan/i.test(model)) return alignTo(raw, 4, 1)
+    return alignTo(raw, 4, ((cur % 4) + 4) % 4)
+  }
+  const applyDuration = () => {
+    const seconds = Number(params.seconds ?? params.duration ?? params.dur ?? params['时长'])
+    if (!(seconds > 0)) return
+
+    const fpsNode = ids.map((id) => graph[id]).find((n) => /CreateVideo|SaveVideo|SaveWEBM|VideoCombine|SaveAnimatedWEBP/.test(String(n?.class_type || '')))
+    const fps = Number(fpsNode?.inputs?.fps) || 24
+
+    const lenNodeId = ids.find((id) => {
+      const t = String(graph[id]?.class_type || '')
+      return /ImageToVideoLatent|MiniMaxH3ImageToVideo|MiniMaxH3ReferenceToVideo|Empty.*Latent/.test(t) && graph[id].inputs?.length !== undefined
+    })
+    if (!lenNodeId) return
+    const node = graph[lenNodeId]
+    const cur = node.inputs.length
+
+    if (typeof cur === 'number') {
+      const aligned = alignFrames(Math.round(seconds * fps), cur)
+      node.inputs.length = aligned
+      applied.length = aligned
+      applied.seconds = seconds
+      applied.fps = fps
+      return
+    }
+
+    if (Array.isArray(cur)) {
+      const via = graph[String(cur[0])]
+      const secRef = via?.inputs?.['values.a'] ?? via?.inputs?.a ?? via?.inputs?.seconds
+      const secNode = Array.isArray(secRef) ? graph[String(secRef[0])] : null
+      if (secNode?.inputs && typeof secNode.inputs.value === 'number') {
+        secNode.inputs.value = seconds
+        applied.seconds = seconds
+        applied.length = `公式自动算（${seconds} 秒 @ ${fps}fps）`
+        return
+      }
+      node.inputs.length = Math.round(seconds * fps)
+      applied.length = node.inputs.length
+      applied.seconds = seconds
+    }
+  }
+  applyDuration()
+
   if (params.model) {
     const id = (nodeMap.model && graph[nodeMap.model] && nodeMap.model) || findFirst('UNETLoader') || findFirst('CheckpointLoaderSimple')
     if (id && graph[id]) {
