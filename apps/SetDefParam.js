@@ -3,6 +3,7 @@ import Config from '../components/Config.js'
 import { parseCommandString } from '../utils/utils.js'
 import { replyCard } from '../utils/render.js'
 import { replyParamsMode } from '../utils/draw.js'
+import { groupWorkflows, describeWorkflow } from '../utils/workflowInfo.js'
 
 export class SetDefParam extends plugin {
   constructor() {
@@ -170,18 +171,12 @@ export class SetDefParam extends plugin {
     await replyCard(e, {
       title: 'ComfyUI 工作流列表',
       subtitle: `共 ${list.length} 个 · 当前是第 ${cur || '?'} 个（${config.workflow || '未设置'}）`,
-      sections: [
-        {
-          title: '可用工作流（输入序号即可切换）',
-          items: list.map((n, i) => ({
-            c: `${i + 1}. ${n}`,
-            d: i + 1 === cur ? '← 当前使用' : ''
-          }))
-        }
-      ],
+      sections: groupWorkflows(list, config.workflow),
       config: [
         { k: '切换方式', v: '#用工作流 3  或  #用工作流 工作流名' },
-        { k: '单次指定', v: '#绘图 提示词 --workflow 3' }
+        { k: '单次指定', v: '#绘图 提示词 --workflow 3' },
+        { k: '说明怎么来的', v: '插件按工作流里的节点自动认的（视频/图片、模型、步数、尺寸、音频）' },
+        { k: '想自己加一句', v: 'config.yaml 里 workflow_notes 段：工作流名: 你的说明' }
       ]
     })
     return true
@@ -215,16 +210,24 @@ export class SetDefParam extends plugin {
     config.workflow = name
     Config.setConfig(config)
     const cur = list.indexOf(name) + 1
+    const info = describeWorkflow(name)
     await replyCard(e, {
       title: '工作流已切换',
       subtitle: `第 ${cur} 个 · ${name}`,
       sections: [
         {
           title: '工作流列表',
-          items: list.map((n, i) => ({ c: `${i + 1}. ${n}`, d: i + 1 === cur ? '← 当前使用' : '' }))
+          items: list.map((n, i) => ({
+            c: `${i + 1}. ${n}`,
+            d: (i + 1 === cur ? '← 当前使用 · ' : '') + describeWorkflow(n).note
+          }))
         }
       ],
-      config: [{ k: '工作流', v: name }]
+      config: [
+        { k: '工作流', v: name },
+        { k: '类型', v: info.category },
+        { k: '说明', v: info.note }
+      ]
     })
     return true
   }
