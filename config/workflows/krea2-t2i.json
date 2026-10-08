@@ -213,7 +213,7 @@
   },
   "30:19": {
     "inputs": {
-      "value": "一只猫"
+      "value": "一只猫,三花"
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
