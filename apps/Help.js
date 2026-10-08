@@ -1,6 +1,7 @@
 import { ComfyPlugin as plugin } from '../utils/base.js'
 import Config from '../components/Config.js'
 import { replyCard } from '../utils/render.js'
+import { replyParamsMode } from '../utils/draw.js'
 
 /**
  * 帮助菜单
@@ -74,7 +75,7 @@ export class Help extends plugin {
           { c: '#查看默认参数', d: '查看当前默认参数' },
           { c: '#工作流列表', d: '看有哪些工作流、当前用的是哪个' },
           { c: '#用工作流 名字', d: '切换默认工作流（仅主人）' },
-          { c: '#开启出图参数 / #关闭出图参数', d: '出图后要不要附一张参数卡片（仅主人）' }
+          { c: '#出图参数 完整 / 耗时 / 关闭', d: '出图后附完整参数卡片 / 只报耗时 / 什么都不发（仅主人）' }
         ]
       },
       {
@@ -101,7 +102,14 @@ export class Help extends plugin {
       { k: '默认工作流', v: config.workflow || '未设置' },
       { k: '可用工作流', v: workflows.join('、') || '（空，把 API 格式 json 放进 config/workflows/）' },
       { k: '默认参数', v: drawText },
-      { k: '参数回执', v: config.reply_params !== false ? '开（出图后附参数卡片）' : '关' },
+      {
+        k: '参数回执',
+        v: {
+          full: '完整参数卡片（含耗时）',
+          time: '只报耗时（秒）',
+          none: '关闭'
+        }[replyParamsMode(config)]
+      },
       { k: '进度提醒', v: Number(config.notify_interval) ? `每 ${config.notify_interval} 秒报一次` : '不打扰' }
     ]
 

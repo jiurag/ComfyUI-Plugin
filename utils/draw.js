@@ -12,6 +12,28 @@ import { nsfwCheck } from './nsfw.js'
 import { pluginResources } from '../model/path.js'
 import { replyCard } from './render.js'
 
+/**
+ * 出图参数回执的模式，三种：
+ *   full —— 完整参数卡片（提示词、种子、步数…，含耗时）
+ *   time —— 只回一句「耗时 X 秒」
+ *   none —— 什么都不发
+ *
+ * 兼容老配置：以前这个值是布尔（true/false），照样认。
+ */
+export function replyParamsMode(config) {
+  const raw = config?.reply_params
+  if (raw === false || raw === 'none' || raw === 'false' || raw === 'off') return 'none'
+  if (raw === 'time') return 'time'
+  return 'full' // true / undefined / 'full' 都当完整
+}
+
+/** 秒数格式化：统一一位小数，够看又不啰嗦 */
+export function formatSeconds(sec) {
+  const n = Number(sec)
+  if (!Number.isFinite(n) || n < 0) return '未知'
+  return `${n.toFixed(1)} 秒`
+}
+
 /** 生成过程中每隔一会儿说一声，别让群里以为卡死了 */
 export function makeTicker(e, config) {
   const notify = Number(config?.notify_interval ?? 60)
@@ -27,8 +49,11 @@ export function makeTicker(e, config) {
   }
 }
 
-/** 把结果发出去：图片直接发，视频落盘后发 */
-export async function sendResult(e, result, config) {
+/**
+ * 把结果发出去：图片直接发，视频落盘后发
+ * @param {number} elapsed 本次出图实际耗时（秒），有就一起发出来
+ */
+export async function sendResult(e, result, config, elapsed) {
   for (const file of result.data.files) {
     if (file.isVideo) {
       const p = `${pluginResources}/tmp/${Date.now()}_${file.filename}`
@@ -45,13 +70,24 @@ export async function sendResult(e, result, config) {
     }
   }
 
-  if (config?.reply_params !== false) {
+  const mode = replyParamsMode(config)
+
+  // 只要耗时：一句话带过，不折腾卡片
+  if (mode === 'time') {
+    await e.reply(`出图完成，耗时 ${formatSeconds(elapsed)}`, true)
+    return
+  }
+
+  if (mode === 'full') {
     // 参数回执也用卡片，和帮助/列表保持一个样式；太长的一行截断，免得把卡片撑爆
     const cut = (v) => {
       const s = String(v ?? '')
       return s.length > 64 ? s.slice(0, 64) + '…' : s
     }
     const rows = Object.entries(result.data.parameters || {}).map(([k, v]) => ({ k, v: cut(v) }))
+    if (elapsed !== undefined && elapsed !== null) {
+      rows.push({ k: '耗时', v: formatSeconds(elapsed) })
+    }
     await replyCard(e, {
       title: '本次出图参数',
       subtitle: `共 ${rows.length} 项 · 提示词过长会自动省略`,
@@ -67,11 +103,13 @@ export async function sendResult(e, result, config) {
  * @returns {{ok: boolean, msg?: string, workflow?: string, parameters?: object}}
  */
 export async function runDraw(e, params, config, { checkNsfw = true } = {}) {
+  const started = Date.now()
   const result = await Code.text2img(params, makeTicker(e, config))
+  const elapsed = (Date.now() - started) / 1000
 
   if (!result.status) {
     await e.reply(result.msg)
-    return { ok: false, msg: result.msg }
+    return { ok: false, msg: result.msg, elapsed }
   }
 
   if (checkNsfw) {
@@ -79,10 +117,10 @@ export async function runDraw(e, params, config, { checkNsfw = true } = {}) {
     if (!isNsfw.status) {
       const msg = `生成图片未通过审核，${isNsfw.msg}`
       await e.reply(msg)
-      return { ok: false, msg }
+      return { ok: false, msg, elapsed }
     }
   }
 
-  await sendResult(e, result, config)
-  return { ok: true, workflow: result.data.workflow, parameters: result.data.parameters }
+  await sendResult(e, result, config, elapsed)
+  return { ok: true, workflow: result.data.workflow, parameters: result.data.parameters, elapsed }
 }

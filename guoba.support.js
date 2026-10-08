@@ -11,6 +11,14 @@ import Config from './components/Config.js'
 
 const MAX_API_SLOTS = 2 // 界面上最多给几个 ComfyUI 地址位
 
+/** 出图参数回执的模式：老配置里是布尔（true/false），这里统一成三态字符串 */
+function replyParamsModeOf(config) {
+  const raw = config?.reply_params
+  if (raw === false || raw === 'none' || raw === 'false' || raw === 'off') return 'none'
+  if (raw === 'time') return 'time'
+  return 'full'
+}
+
 /**
  * ComfyUI 地址这几个字段，界面上的名字必须写成 api_1_baseurl 这种，
  * 不能写成 api_list.0.baseurl。
@@ -137,9 +145,18 @@ export function supportGuoba() {
     },
     {
       field: 'reply_params',
-      label: '出图后附上参数',
-      bottomHelpMessage: '出图后附一张「本次出图参数」卡片（提示词、种子、步数等）。群里也能开关：#关闭出图参数 / #开启出图参数',
-      component: 'Switch'
+      label: '出图后的参数回执',
+      bottomHelpMessage:
+        '完整＝附一张参数卡片（提示词、种子、步数、耗时）；只报耗时＝回一句「出图完成，耗时 X 秒」；关闭＝什么都不发。' +
+        '群里也能改：#出图参数 完整 / 耗时 / 关闭',
+      component: 'Select',
+      componentProps: {
+        options: [
+          { label: '完整参数卡片（含耗时）', value: 'full' },
+          { label: '只报耗时（秒）', value: 'time' },
+          { label: '关闭', value: 'none' }
+        ]
+      }
     },
 
     // ---------------- 默认绘图参数 ----------------
@@ -251,6 +268,9 @@ export function supportGuoba() {
         }
 
         config.node_map = config.node_map || {}
+
+        // 参数回执在界面上是下拉框，老配置的 true/false 也要能对上选项
+        config.reply_params = replyParamsModeOf(config)
 
         // 白名单在 yaml 里是数组，界面上用多行文本框更好填，这里来回转换
         const wl = config.whitelist || {}

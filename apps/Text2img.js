@@ -111,14 +111,16 @@ export class Text2img extends plugin {
       return true
     }
 
+    const started = Date.now()
     const result = await Code.img2img(params, Buffer.from(b64, 'base64'), makeTicker(e, config))
+    const elapsed = (Date.now() - started) / 1000
 
     if (!result.status) {
       await e.reply(result.msg)
       return true
     }
 
-    await sendResult(e, result, config)
+    await sendResult(e, result, config, elapsed)
     this._remember(e, params, {
       raw: extractPrompt(e.msg, IMG_HEADS),
       workflow: result.data?.workflow,
