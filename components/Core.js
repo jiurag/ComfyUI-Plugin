@@ -158,10 +158,7 @@ class Code {
         const item = h[promptId]
         if (item) {
           if (item.status?.status_str === 'error') {
-            const msg = (item.status?.messages || [])
-              .map((m) => (Array.isArray(m) ? `${m[0]}:${JSON.stringify(m[1]).slice(0, 200)}` : String(m)))
-              .join('\n')
-            return { status: false, msg: `ComfyUI 执行出错：\n${msg}` }
+            return { status: false, msg: describeComfyError(item, wfName) }
           }
           outputs = item.outputs || {}
           break
@@ -274,3 +271,35 @@ class Code {
 }
 
 export default new Code()
+export function describeComfyError(item, workflowName = '') {
+  const messages = item?.status?.messages || []
+  const err =
+    messages
+      .map((m) => (Array.isArray(m) ? m[1] : null))
+      .find((p) => p && (p.exception_message || p.node_type || p.exception_type)) || {}
+
+  const lines = []
+  if (workflowName) lines.push(`工作流：${workflowName}`)
+  if (err.node_type) lines.push(`出错节点：${err.node_type}${err.node_id ? ` #${err.node_id}` : ''}`)
+
+  const detail = String(err.exception_message || err.exception_type || '').replace(/\s+/g, ' ').trim()
+  if (detail) lines.push(`原因：${detail.slice(0, 220)}`)
+
+  const oom = /out of memory|OutOfMemory|Allocation on device|exceed allowed memory/i.test(
+    `${detail} ${err.exception_type || ''}`
+  )
+  if (oom) {
+    lines.push(
+      '这看着是显存不够（视频模型特别吃）。可以：\n' +
+        '  · 尺寸调小：--ratio 1:1 --megapixels 0.3（或 --size 512x512）\n' +
+        '  · 时长缩短：--seconds 2\n' +
+        '  · 关掉别的占显存的程序（WebUI、游戏、浏览器标签）\n' +
+        '  · 给 ComfyUI 启动参数加 --lowvram（更省显存，慢一点）'
+    )
+  }
+
+  if (!lines.length) {
+    lines.push(messages.map((m) => (Array.isArray(m) ? m[0] : String(m))).join(' → '))
+  }
+  return `ComfyUI 执行出错\n${lines.join('\n')}`
+}
