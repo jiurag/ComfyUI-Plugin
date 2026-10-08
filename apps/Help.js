@@ -3,12 +3,6 @@ import Config from '../components/Config.js'
 import { replyCard } from '../utils/render.js'
 import { replyParamsMode } from '../utils/draw.js'
 
-/**
- * 帮助菜单
- *
- * 这套 Yunzai 没有装喵喵帮助（Miao-Plugin），所以按本机惯例：
- * 每个插件自带一个「#xxx帮助」，用合并转发把用法发出来。
- */
 export class Help extends plugin {
   constructor() {
     super({
@@ -40,7 +34,6 @@ export class Help extends plugin {
       ? drawKeys.map((k) => `${k}=${draw[k]}`).join('  ')
       : '（空，用工作流里的默认值）'
 
-    // ---------- 卡片内容 ----------
     const sections = [
       {
         title: '最常用',
@@ -113,7 +106,6 @@ export class Help extends plugin {
       { k: '进度提醒', v: Number(config.notify_interval) ? `每 ${config.notify_interval} 秒报一次` : '不打扰' }
     ]
 
-    // 渲染成图片卡片；万一渲染器出问题会自动回退成文字
     await replyCard(e, {
       title: 'ComfyUI 绘图',
       subtitle: `命令一览 · 当前工作流 ${config.workflow || '未设置'}`,

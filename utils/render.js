@@ -1,11 +1,3 @@
-/**
- * 通用卡片渲染
- *
- * 把数据交给 TRSS 的渲染后端（puppeteer / shotium）画成图片卡片。
- * 渲染失败返回 null，调用方自己决定要不要回退成文字。
- *
- * 注意 import 层级：本文件在 plugins/<插件>/utils/ 下，要退三级才到云崽根目录。
- */
 import { pluginRoot } from '../model/path.js'
 
 const TPL_FILE = `${pluginRoot}/resources/help/help.html`.replace(/\\/g, '/')
@@ -33,7 +25,6 @@ export async function renderCard(data = {}) {
   }
 }
 
-/** 把 sections 拼成纯文本，渲染失败时的兜底 */
 export function sectionsToText(title, sections, config = []) {
   const lines = [`【${title}】`]
   for (const s of sections) {
@@ -47,7 +38,6 @@ export function sectionsToText(title, sections, config = []) {
   return lines.join('\n')
 }
 
-/** 渲染卡片，失败就回退文字（合并转发） */
 export async function replyCard(e, data, fallbackTitle) {
   const img = await renderCard(data)
   if (img) {

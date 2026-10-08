@@ -1,17 +1,12 @@
 import Config from '../components/Config.js'
 import { createHash } from 'node:crypto'
 
-/**
- * 中文提示词自动翻译（百度翻译）
- * 没配 appid/appkey 就直接原样返回，不影响使用。
- */
 export async function translate(text) {
   if (!text) return text
   const config = (await Config.getConfig()) || {}
   const { appid, appkey } = config.translate || {}
   if (!appid || !appkey) return text
 
-  // 只有中文才翻译
   if (!/[\u4e00-\u9fa5]/.test(text)) return text
 
   try {

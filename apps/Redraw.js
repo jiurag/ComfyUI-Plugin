@@ -1,15 +1,3 @@
-/**
- * 重绘：复用「上次画的那张」的提示词和参数，再跑一遍
- *
- *   #重绘                  原样再来一张（种子重新随机，所以是张新图）
- *   #重绘 --steps 12       复用上次的，但这次只改步数
- *   #重绘 换成雪天          复用上次的参数，只换提示词
- *   #上次提示词            看看上次用的到底是什么提示词
- *   #忘记上次绘图          清掉记录
- *
- * 记录按群（群聊）/按人（私聊）存，成功出图时才记，最多留 12 小时。
- */
-
 import { ComfyPlugin as plugin } from '../utils/base.js'
 import Config from '../components/Config.js'
 import { parseCommandString, parseSize, extractPrompt, preferRatioOverDefaultSize } from '../utils/utils.js'
@@ -18,7 +6,6 @@ import { runDraw } from '../utils/draw.js'
 import { replyCard } from '../utils/render.js'
 import { lastDrawKey, getLast, saveLast, clearLast, lastDrawRows } from '../utils/lastDraw.js'
 
-/** 命令头，取提示词时要剥掉 */
 const HEADS = ['重绘', '再画一张', '再来一张', 'redraw']
 
 export class Redraw extends plugin {
@@ -59,7 +46,6 @@ export class Redraw extends plugin {
     const config = (await Config.getConfig()) || {}
     const parsed = await parseCommandString(e.msg)
 
-    // 以「上次的参数」为底，命令里临时写的 --参数 覆盖上去
     const params = { ...last.params }
     for (const [k, v] of Object.entries(parsed)) {
       if (k === 'size') continue
@@ -71,14 +57,11 @@ export class Redraw extends plugin {
       params.height = size.height
     }
     delete params.size
-    // 这次写了 --ratio 却没写尺寸：把上次记下来的宽高摘掉，按比例重新算
     preferRatioOverDefaultSize(params, parsed)
 
-    // #重绘 后面直接写字 = 只换提示词，其它照旧
     const inline = extractPrompt(e.msg, HEADS)
     if (inline) params.prompt = await translate(inline)
 
-    // 没明确指定种子就重新随机（重绘的意义就是要不一样的图）
     if (parsed.seed === undefined) delete params.seed
 
     if (!params.prompt) {
@@ -95,7 +78,6 @@ export class Redraw extends plugin {
 
     const r = await runDraw(e, params, config)
     if (r.ok) {
-      // 更新记录：这样连续 #重绘 会一直在最新的这套参数上再来
       saveLast(key, {
         who: last.who,
         userId: last.userId,

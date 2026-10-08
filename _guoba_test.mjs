@@ -1,9 +1,3 @@
-/**
- * 锅巴适配自检：模拟锅巴前端读取/保存配置，检查读写是否正确
- *
- * 用法（在插件目录下）： node _guoba_test.mjs
- * 它不会真的去连 ComfyUI，只验证 guoba.support.js 的逻辑。
- */
 import './model/init.js'
 import Config from './components/Config.js'
 import { supportGuoba } from './guoba.support.js'
@@ -15,12 +9,10 @@ console.log('插件信息：', guoba.pluginInfo.title, '/', guoba.pluginInfo.nam
 console.log('配置项数量：', schemas.length)
 console.log('分组：', schemas.filter((s) => s.component === 'SOFT_GROUP_BEGIN').map((s) => s.label).join(' | '))
 
-// ---- 1. 模拟前端打开页面 ----
 let data = getConfigData()
 console.log('\n[打开页面] api_list =', JSON.stringify(data.api_list))
 console.log('[打开页面] workflow =', data.workflow)
 
-// ---- 2. 模拟用户改完点保存 ----
 const Result = {
   ok: (d, msg) => ({ ok: msg }),
   error: (d, msg) => ({ error: msg })
@@ -30,7 +22,7 @@ const form = {
   'api_list.0.baseurl': 'http://127.0.0.1:8188',
   'api_list.0.username': '',
   'api_list.0.password': '',
-  'api_list.1.baseurl': '', // 备用地址留空 → 应该被清掉
+  'api_list.1.baseurl': '',
   'api_list.1.username': '',
   'api_list.1.password': '',
   use_api: 0,
@@ -45,7 +37,7 @@ const form = {
   'draw.width': 1024,
   'draw.height': 1024,
   'draw.batch_size': 1,
-  'draw.denoise': '', // 留空 → 应该被删掉
+  'draw.denoise': '',
   'draw.sampler_name': '',
   'draw.scheduler': '',
   'draw.model': '',
@@ -68,7 +60,6 @@ const form = {
 const saveResult = setConfigData(form, { Result })
 console.log('\n[点保存] 返回：', JSON.stringify(saveResult))
 
-// ---- 3. 直接读文件确认 ----
 const savedConfig = Config.getConfig()
 const savedDraw = Config.getDefDrawParams()
 console.log('\n[落盘 config.yaml]')
@@ -77,7 +68,6 @@ console.log('  workflow =', savedConfig.workflow, '｜ timeout =', savedConfig.t
 console.log('[落盘 def_draw_params.yaml]')
 console.log(' ', JSON.stringify(savedDraw))
 
-// ---- 4. 再读一遍，确认能回填 ----
 const roundTrip = getConfigData()
 console.log('\n[再次打开页面] api_list =', JSON.stringify(roundTrip.api_list))
 console.log('[再次打开页面] draw =', JSON.stringify(roundTrip.draw))

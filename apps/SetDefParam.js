@@ -80,7 +80,6 @@ export class SetDefParam extends plugin {
     return true
   }
 
-  /** 出图后的「本次出图参数」回执 开 / 关 */
   async setParamsReply(e) {
     if (!e.isMaster) {
       await e.reply('只有主人才能改这个开关哦')
@@ -88,7 +87,6 @@ export class SetDefParam extends plugin {
     }
     const on = /开启/.test(e.msg)
     const config = Config.getConfig() || {}
-    // 统一写成新的三态值（老配置里的 true/false 依然认）
     config.reply_params = on ? 'full' : 'none'
     if (!Config.setConfig(config)) {
       await e.reply('写入失败，检查插件目录权限')
@@ -103,13 +101,6 @@ export class SetDefParam extends plugin {
     return true
   }
 
-  /**
-   * 出图参数回执的三种模式
-   *   #出图参数                 看现在是哪种
-   *   #出图参数 关闭            什么都不发
-   *   #出图参数 完整            发完整参数卡片（含耗时）
-   *   #出图参数 耗时            只回一句「出图完成，耗时 X 秒」
-   */
   async setParamsMode(e) {
     const config = Config.getConfig() || {}
     const arg = String(e.msg).replace(/^#?出图参数\s*/, '').trim()
@@ -128,7 +119,6 @@ export class SetDefParam extends plugin {
       time: '只报耗时（出图完成，耗时 X 秒）'
     }
 
-    // 只看状态
     if (!arg) {
       const now = replyParamsMode(config)
       await replyCard(e, {
@@ -208,7 +198,6 @@ export class SetDefParam extends plugin {
       await e.reply(`用法：#用工作流 序号 或 #用工作流 名字\n现有：\n${list.map((n, i) => `  ${i + 1}. ${n}`).join('\n') || '（空）'}`)
       return true
     }
-    // 支持直接用序号切换
     let name = arg
     if (/^\d+$/.test(arg)) {
       const idx = Number(arg)

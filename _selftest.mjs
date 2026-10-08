@@ -1,13 +1,3 @@
-/**
- * 自检脚本：不经过 QQ，直接跑一次工作流
- *
- * 用法（在插件目录下）：
- *     node _selftest.mjs
- *     node _selftest.mjs "你的提示词" z-image-turbo
- *     node _selftest.mjs "把背景换成雪天" qwen-image-edit-2509 --image "D:\a.png"
- *
- * 能出图就说明：配置对、网络通、工作流模板对、参数注入对。
- */
 import fs from 'node:fs'
 import './model/init.js'
 import Config from './components/Config.js'

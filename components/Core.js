@@ -3,17 +3,6 @@ import Config from './Config.js'
 import { buildPrompt } from '../utils/workflow.js'
 import { sleep } from '../utils/utils.js'
 
-/**
- * ComfyUI 接口封装（只用 Node 内置 fetch，不依赖任何第三方包）
- *
- * 与 sd-plugin 最大的不同：
- *   SD WebUI  是一次请求就把参数全传过去（/sdapi/v1/txt2img），拿回 base64 图；
- *   ComfyUI  是「提交一张工作流图 → 排队执行 → 轮询结果 → 再按文件名取图」四步。
- * 这里把四步都封装掉，对外仍返回 { status, data: { images, files, parameters } }，
- * 上层命令代码几乎不用改。
- */
-
-/** 统一请求：带超时，出错信息转成好读的中文 */
 async function request(url, { method = 'GET', headers = {}, body, timeout = 60000, raw = false } = {}) {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeout)
@@ -39,7 +28,6 @@ async function request(url, { method = 'GET', headers = {}, body, timeout = 6000
 }
 
 class Code {
-  /** 挑一个接口（多后端时随机或指定） */
   async getBase() {
     const config = await Config.getConfig()
     const api_list = (config?.api_list || []).filter((a) => a && String(a.baseurl || '').trim())
@@ -75,7 +63,6 @@ class Code {
     return error?.message || '未知错误'
   }
 
-  /** 上传一张图到 ComfyUI 的 input 目录，返回它给的文件名 */
   async uploadImage(buffer, filename) {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口（config.yaml 的 api_list）' }
@@ -86,7 +73,7 @@ class Code {
       form.append('type', 'input')
       const data = await request(`${this._base(api)}/upload/image`, {
         method: 'POST',
-        headers: this._headers(api, false), // 让 fetch 自己带 multipart 边界
+        headers: this._headers(api, false),
         body: form,
         timeout: 120000
       })
@@ -96,17 +83,11 @@ class Code {
     }
   }
 
-  /**
-   * 核心：把模板+参数跑成图片，返回 base64
-   * @param onTick 生成过程中定期回调（报进度）
-   * @param onSubmit 提交被接受时回调一次，参数里带队列情况
-   */
   async text2img(params = {}, onTick = null, onSubmit = null) {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口（config.yaml 的 api_list）' }
 
     const config = (await Config.getConfig()) || {}
-    // 允许 --workflow 直接写序号（对应 #工作流列表 里的编号）
     let wfName = params.workflow || config.workflow
     if (typeof wfName === 'number' || /^\d+$/.test(String(wfName || ''))) {
       const list = Config.listWorkflows()
@@ -121,7 +102,6 @@ class Code {
       }
     }
 
-    // 节点定位：全局 node_map + 这个工作流自己的覆盖项
     const nodeMap = {
       ...(config.node_map || {}),
       ...((config.workflow_node_map || {})[wfName] || {})
@@ -130,7 +110,6 @@ class Code {
     const base = this._base(api)
     const headers = this._headers(api)
 
-    // 1) 提交
     let promptId
     try {
       const res = await request(`${base}/prompt`, {
@@ -148,7 +127,6 @@ class Code {
       promptId = res.prompt_id
       if (!promptId) return { status: false, msg: '提交失败：ComfyUI 没返回 prompt_id' }
 
-      // 提交成功 → 顺手看一眼队列，好告诉用户前面还堆了多少（查失败不影响主流程）
       let queue = null
       try {
         const q = await request(`${base}/queue`, { headers, timeout: 10000 })
@@ -169,7 +147,6 @@ class Code {
       return { status: false, msg: this._err('提交工作流', error) }
     }
 
-    // 2) 轮询结果
     const interval = Math.max(1, Number(config.poll_interval) || 2) * 1000
     const timeout = (Number(config.timeout) || 900) * 1000
     const started = Date.now()
@@ -195,7 +172,6 @@ class Code {
             const q = await request(`${base}/prompt`, { headers, timeout: 10000 })
             remain = q?.exec_info?.queue_remaining
           } catch (_) {
-            /* 查队列失败不影响主流程 */
           }
           onTick(Math.round((Date.now() - started) / 1000), remain)
         }
@@ -208,7 +184,6 @@ class Code {
       return { status: false, msg: `等待超过 ${timeout / 1000} 秒还没出结果，已放弃（任务可能还在跑，可用 #取消绘画 终止）` }
     }
 
-    // 3) 取回文件
     const images = []
     const files = []
     for (const nodeId of Object.keys(outputs)) {
@@ -231,11 +206,9 @@ class Code {
 
     if (!images.length) return { status: false, msg: '工作流跑完了，但没有产出图片（检查工作流末尾有没有 SaveImage/SaveVideo 节点）' }
 
-    // workflow 一并带出去：上层要记「上次用的是哪个工作流」，#重绘 才能复现同一套
     return { status: true, data: { images, files, parameters: applied, prompt_id: promptId, workflow: wfName } }
   }
 
-  /** 图生图：把引用图片传给工作流里的 LoadImage 节点 */
   async img2img(params = {}, imageBuffer, onTick = null, onSubmit = null) {
     const up = await this.uploadImage(imageBuffer, `yunzai_${Date.now()}.png`)
     if (!up.status) return up
@@ -244,7 +217,6 @@ class Code {
     return this.text2img({ ...params, image: name }, onTick, onSubmit)
   }
 
-  /** 中断当前任务 */
   async interrupt() {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口' }
@@ -261,7 +233,6 @@ class Code {
     }
   }
 
-  /** 队列情况 */
   async queue() {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口' }
@@ -273,7 +244,6 @@ class Code {
     }
   }
 
-  /** 列出可用的底模（从节点信息里取） */
   async listModels() {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口' }
@@ -290,7 +260,6 @@ class Code {
     }
   }
 
-  /** 列出 LoRA */
   async listLoras() {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口' }

@@ -50,7 +50,6 @@ class Config {
     }
   }
 
-  /** 读取工作流模板（ComfyUI「导出(API)」出来的 json） */
   getWorkflow(name) {
     try {
       const p = `${pluginRoot}/config/workflows/${name}.json`
@@ -68,8 +67,6 @@ class Config {
         .readdirSync(`${pluginRoot}/config/workflows`)
         .filter((f) => f.endsWith('.json'))
         .map((f) => f.replace('.json', ''))
-        // 必须排序：目录返回顺序在不同系统/不同文件数下会变，
-        // 而 #工作流列表 的序号是要给人记下来用的，顺序飘了序号就全错位了
         .sort((a, b) => a.localeCompare(b, 'en'))
     } catch (err) {
       return []

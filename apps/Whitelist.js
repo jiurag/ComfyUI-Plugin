@@ -1,15 +1,3 @@
-/**
- * 使用白名单管理（只有机器人主人能用）
- *
- *   #绘图白名单                  看当前设置
- *   #开启绘图白名单 / #关闭绘图白名单
- *   #添加绘图白名单 群 123456     也可以用「本群」；私聊可以用 @某人 或「我」
- *   #删除绘图白名单 群 123456
- *
- * 白名单开着的时候，不在名单里的群/人发任何绘图指令都会被拦掉（回一句提示）。
- * 机器人主人始终放行，所以不会出现"把自己关在外面"的情况。
- */
-
 import { ComfyPlugin as plugin } from '../utils/base.js'
 import { getWhitelist, setWhitelist, normalizeList } from '../utils/whitelist.js'
 import { replyCard } from '../utils/render.js'
@@ -33,17 +21,12 @@ export class Whitelist extends plugin {
     })
   }
 
-  /** 只有主人能改 */
   async _masterOnly(e) {
     if (e.isMaster) return false
     await e.reply('只有主人才能改白名单哦')
     return true
   }
 
-  /**
-   * 解析「群 123456 / 本群 / @某人 / 我」这类写法
-   * 只说一个数字时不带范围，默认按当前会话类型算
-   */
   _parse(e, arg) {
     const parts = String(arg || '')
       .trim()
@@ -116,7 +99,6 @@ export class Whitelist extends plugin {
     return true
   }
 
-  /** 被拦下时一声不吭（默认就是这个） */
   async silent(e) {
     if (await this._masterOnly(e)) return true
     setWhitelist({ reply: false })
@@ -124,7 +106,6 @@ export class Whitelist extends plugin {
     return true
   }
 
-  /** 被拦下时回一句提示（想看群号的时候用） */
   async hint(e) {
     if (await this._masterOnly(e)) return true
     setWhitelist({ reply: true })

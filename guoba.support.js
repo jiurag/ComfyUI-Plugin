@@ -1,17 +1,8 @@
-/**
- * 锅巴插件（Guoba-Plugin）适配文件
- *
- * 放到插件根目录后，锅巴后台就会出现「ComfyUI 绘图」这一页，
- * 可以直接在网页上改配置，不用再去编辑 yaml。
- *
- * 没装锅巴也没关系：这个文件不会被云崽加载，插件照常工作。
- */
 import lodash from 'lodash'
 import Config from './components/Config.js'
 
-const MAX_API_SLOTS = 2 // 界面上最多给几个 ComfyUI 地址位
+const MAX_API_SLOTS = 2 
 
-/** 出图参数回执的模式：老配置里是布尔（true/false），这里统一成三态字符串 */
 function replyParamsModeOf(config) {
   const raw = config?.reply_params
   if (raw === false || raw === 'none' || raw === 'false' || raw === 'off') return 'none'
@@ -19,16 +10,6 @@ function replyParamsModeOf(config) {
   return 'full'
 }
 
-/**
- * ComfyUI 地址这几个字段，界面上的名字必须写成 api_1_baseurl 这种，
- * 不能写成 api_list.0.baseurl。
- *
- * 原因：锅巴前端 BasicForm 回填表单时用的是
- *   eval('values' + '.' + 字段名)
- * 也就是 eval('values.api_list.0.baseurl') —— 这在 JS 里是语法错误，
- * 于是该字段永远填不上、页面显示空白，保存时还会把空值写回配置。
- * 换成 api_1_baseurl 就没有点了，能正常走直接赋值那条分支。
- */
 function apiSchemaFields() {
   const out = []
   for (let i = 1; i <= MAX_API_SLOTS; i++) {
@@ -63,8 +44,6 @@ function apiSchemaFields() {
   return out
 }
 
-// 可以在锅巴里直接编辑的「默认绘图参数」（存在 def_draw_params.yaml）
-// 画面比例：存简写（16:9 这种），插件注入时会补成节点认识的完整名字
 const RATIO_OPTIONS = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'].map((r) => ({ label: r, value: r }))
 
 const DRAW_FIELDS = [
@@ -100,7 +79,6 @@ export function supportGuoba() {
   const workflows = Config.listWorkflows()
 
   const schemas = [
-    // ---------------- ComfyUI 接口 ----------------
     { label: 'ComfyUI 接口', component: 'SOFT_GROUP_BEGIN' },
     ...apiSchemaFields(),
     {
@@ -111,7 +89,6 @@ export function supportGuoba() {
       componentProps: { min: 0, max: MAX_API_SLOTS }
     },
 
-    // ---------------- 工作流与运行 ----------------
     { label: '工作流与运行', component: 'SOFT_GROUP_BEGIN' },
     {
       field: 'workflow',
@@ -159,7 +136,6 @@ export function supportGuoba() {
       }
     },
 
-    // ---------------- 默认绘图参数 ----------------
     { label: '默认绘图参数（群里不写参数时用）', component: 'SOFT_GROUP_BEGIN' },
     ...DRAW_FIELDS.map((f) => ({
       field: `draw.${f.key}`,
@@ -169,7 +145,6 @@ export function supportGuoba() {
       componentProps: f.props || {}
     })),
 
-    // ---------------- 高级 ----------------
     { label: '高级：节点定位（认不出工作流节点时才填）', component: 'SOFT_GROUP_BEGIN' },
     {
       field: 'node_map.positive',
@@ -185,7 +160,6 @@ export function supportGuoba() {
     { field: 'node_map.lora', label: 'LoRA 节点 id', component: 'Input', componentProps: { placeholder: '留空' } },
     { field: 'node_map.image', label: '输入图片节点 id', component: 'Input', componentProps: { placeholder: '留空' } },
 
-    // ---------------- 翻译与审核 ----------------
     { label: '翻译与内容审核（可选）', component: 'SOFT_GROUP_BEGIN' },
     {
       field: 'translate.appid',
@@ -204,7 +178,6 @@ export function supportGuoba() {
     { field: 'nsfw_check.url', label: '审核接口地址', component: 'Input', componentProps: { placeholder: 'https://...' } },
     { field: 'nsfw_check.apikey', label: '审核接口密钥', component: 'InputPassword', componentProps: { placeholder: '可留空' } },
 
-    // ---------------- 使用白名单 ----------------
     { label: '使用白名单', component: 'SOFT_GROUP_BEGIN' },
     {
       field: 'whitelist.enable',
@@ -251,12 +224,9 @@ export function supportGuoba() {
     configInfo: {
       schemas,
 
-      // 打开页面时，把配置读出来填进表单
       getConfigData() {
         const config = lodash.cloneDeep(Config.getConfig() || {})
 
-        // api_list 是数组，界面上那几个字段没法直接用（见上面 apiSchemaFields 的注释），
-        // 所以这里把它拍平成 api_1_baseurl / api_1_username ... 再把原数组摘掉。
         const apiList = Array.isArray(config.api_list) ? config.api_list : []
         delete config.api_list
         for (let i = 0; i < MAX_API_SLOTS; i++) {
@@ -269,17 +239,14 @@ export function supportGuoba() {
 
         config.node_map = config.node_map || {}
 
-        // 参数回执在界面上是下拉框，老配置的 true/false 也要能对上选项
         config.reply_params = replyParamsModeOf(config)
 
-        // 白名单在 yaml 里是数组，界面上用多行文本框更好填，这里来回转换
         const wl = config.whitelist || {}
         config.wl_groups = (Array.isArray(wl.groups) ? wl.groups : []).join('\n')
         config.wl_users = (Array.isArray(wl.users) ? wl.users : []).join('\n')
         delete config.whitelist
         config.whitelist = { enable: wl.enable === true, reply: wl.reply !== false }
 
-        // 默认绘图参数单独存一个文件，这里拍平成 draw.xxx
         const draw = Config.getDefDrawParams() || {}
         config.draw = {}
         for (const f of DRAW_FIELDS) {
@@ -288,7 +255,6 @@ export function supportGuoba() {
         return config
       },
 
-      // 点“保存”时写回文件
       setConfigData(data, { Result }) {
         const patch = {}
         const drawPatch = {}
@@ -312,9 +278,7 @@ export function supportGuoba() {
           }
         }
 
-        // 1) 主配置
         const config = lodash.merge({}, Config.getConfig() || {}, patch)
-        // 把 api_1_* / api_2_* 拼回 api_list（界面上没交这几个字段时就保持原样）
         if (Object.keys(apiPatch).length) {
           const slots = []
           for (let i = 1; i <= MAX_API_SLOTS; i++) {
@@ -332,7 +296,6 @@ export function supportGuoba() {
           config.api_list = [{ baseurl: '', username: '', password: '' }]
         }
 
-        // 多行文本 → 数组（逗号、顿号也认，顺手去掉空行）
         const splitIds = (v) =>
           String(v ?? '')
             .split(/[\s,，、;；]+/)
@@ -344,7 +307,6 @@ export function supportGuoba() {
 
         if (!Config.setConfig(config)) return Result.error({}, '写入 config.yaml 失败，检查插件目录权限')
 
-        // 2) 默认绘图参数：空值等于“删掉这一项”
         const draw = Config.getDefDrawParams() || {}
         for (const [key, value] of Object.entries(drawPatch)) {
           if (value === '' || value === null || value === undefined) delete draw[key]
