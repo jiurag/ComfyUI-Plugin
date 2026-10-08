@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: transparent; width: 520px; -webkit-font-smoothing: antialiased;
+    /* 渲染器是「按 body 的实际尺寸 1:1 截图」，缩放参数它不认。
+       所以这里整体放大 2 倍渲染 —— 出来的图就是 1040px 宽，字才不糊。 */
+    zoom: 2;
+  }
+  .card {
+    position: relative;
+    background: radial-gradient(120% 90% at 50% 0%, #16283a 0%, #0f1b26 45%, #0a121a 100%);
+    border: 1px solid rgba(110, 200, 170, .22);
+    border-radius: 18px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.55) inset, 0 14px 36px rgba(0,0,0,.5);
+  }
+  .inner { position: absolute; inset: 6px; border: 1px solid rgba(110,200,170,.10); border-radius: 12px; pointer-events: none; }
+
+  .header {
+    position: relative; padding: 16px 22px 14px;
+    background: linear-gradient(135deg, #123a30 0%, #0f1f2b 55%, #16283a 100%);
+    border-bottom: 1px solid rgba(110, 220, 180, .30); overflow: hidden;
+  }
+  .header::before {
+    content: ''; position: absolute; right: -30px; top: -60px; width: 170px; height: 170px;
+    background: radial-gradient(circle, rgba(90, 220, 170, .25), transparent 68%);
+  }
+  .h-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px;
+    background: linear-gradient(160deg, #1c4b3d, #10242e);
+    border: 1px solid rgba(110, 220, 180, .5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 900; color: #6ee7b7; letter-spacing: .5px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.35);
+  }
+  .h-title { font-size: 20px; font-weight: 900; color: #f2f7f5; letter-spacing: .5px; }
+  .h-sub { font-size: 11px; color: #7fa79a; font-weight: 600; margin-top: 3px; letter-spacing: .3px; }
+
+  .body { position: relative; padding: 14px 20px 10px; }
+  .sec { margin-bottom: 12px; }
+  .sec:last-child { margin-bottom: 4px; }
+  .sec-t {
+    font-size: 11px; font-weight: 800; color: #6ee7b7; letter-spacing: 1.2px;
+    margin-bottom: 6px; padding-left: 8px; border-left: 3px solid #34d399;
+  }
+  .cmd { display: flex; align-items: flex-start; gap: 10px; padding: 5px 2px; }
+  .c {
+    flex-shrink: 0; min-width: 150px; font-size: 12px; font-weight: 700; color: #8fe3c6;
+    background: rgba(80, 200, 160, .10); border: 1px solid rgba(80, 200, 160, .22);
+    padding: 2px 9px; border-radius: 7px; line-height: 1.5;
+  }
+  .d { font-size: 12.5px; color: #d5e2e0; line-height: 1.55; padding-top: 2px; }
+
+  .footer {
+    position: relative; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid rgba(110, 200, 170, .14);
+    background: linear-gradient(180deg, rgba(90,220,170,.04), rgba(0,0,0,.18));
+  }
+  .f-brand { font-size: 11px; color: #6ee7b7; font-weight: 800; letter-spacing: .5px; }
+  .f-note { font-size: 10px; color: #7c95a3; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="inner"></div>
+
+  <div class="header">
+    <div class="h-top">
+      <div class="logo">AI</div>
+      <div>
+        <div class="h-title">{{title}}</div>
+        <div class="h-sub">{{subtitle}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    {{each sections sec}}
+    <div class="sec">
+      <div class="sec-t">{{sec.title}}</div>
+      {{each sec.items it}}
+      <div class="cmd"><span class="c">{{it.c}}</span><span class="d">{{it.d}}</span></div>
+      {{/each}}
+    </div>
+    {{/each}}
+
+    {{if config && config.length}}
+    <div class="sec">
+      <div class="sec-t">{{configTitle || '当前配置'}}</div>
+      {{each config it}}
+      <div class="cmd"><span class="c">{{it.k}}</span><span class="d">{{it.v}}</span></div>
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="footer">
+    <span class="f-brand">{{footer || 'ComfyUI 绘图插件'}}</span>
+    <span class="f-note">发送 #绘图帮助 随时查看</span>
+  </div>
+</div>
+</body>
+</html>

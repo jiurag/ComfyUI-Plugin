@@ -1,0 +1,15 @@
+{
+  "name": "comfyui-plugin",
+  "version": "0.1.0",
+  "description": "基于 Yunzai 的下一代 AI 绘图插件，使用 ComfyUI 接口（工作流驱动）",
+  "main": "index.js",
+  "type": "module",
+  "module": "index.js",
+  "dependencies": {},
+  "keywords": [
+    "Yunzai-Bot",
+    "云崽",
+    "ComfyUI"
+  ],
+  "license": "ISC"
+}

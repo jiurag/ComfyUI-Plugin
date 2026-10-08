@@ -1,0 +1,16 @@
+# 运行时会生成的东西，不要提交（里面会有你的 ComfyUI 地址、账号密码、
+# 群里用过的提示词、群号/QQ 号等，属于隐私）
+# 注意：config/config/.keep 要留着 —— 没这个目录，插件第一次启动会读写配置失败
+config/config/*
+!config/config/.keep
+resources/tmp/*
+!resources/tmp/.keep
+*.log
+*.utf8bak
+
+# 编辑器 / 系统杂物
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+node_modules/
