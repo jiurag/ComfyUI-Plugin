@@ -23,7 +23,23 @@ class Config {
 
   setConfig(config_data) {
     try {
-      fs.writeFileSync(`${pluginRoot}/config/config/config.yaml`, YAML.stringify(config_data))
+      const file = `${pluginRoot}/config/config/config.yaml`
+      try {
+        if (fs.existsSync(file)) {
+          const raw = fs.readFileSync(file, 'utf-8')
+          let parseOk = true
+          try {
+            YAML.parse(raw)
+          } catch {
+            parseOk = false
+          }
+          const backup = parseOk ? `${file}.bak` : `${file}.broken-${Date.now()}`
+          fs.writeFileSync(backup, raw)
+        }
+      } catch (err) {
+        console.error('[COMFYUI-PLUGIN] 备份旧配置失败', err?.message)
+      }
+      fs.writeFileSync(file, YAML.stringify(config_data))
       return true
     } catch (err) {
       console.error('[COMFYUI-PLUGIN] 写入 config.yaml 失败', err)

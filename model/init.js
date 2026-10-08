@@ -21,8 +21,15 @@ class Init {
     }
     const defYaml = Config.getDefConfig()
     const yaml = Config.getConfig()
+    const added = []
     for (const key in defYaml) {
-      if (!(key in yaml)) yaml[key] = defYaml[key]
+      if (!(key in yaml)) {
+        yaml[key] = defYaml[key]
+        added.push(key)
+      }
+    }
+    if (added.length) {
+      console.error(`[COMFYUI-PLUGIN] 配置里缺少 ${added.length} 项，已按默认值补上：${added.join('、')}`)
     }
     for (const key in yaml) {
       if (!(key in defYaml)) delete yaml[key]
