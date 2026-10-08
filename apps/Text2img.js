@@ -3,7 +3,7 @@ import Config from '../components/Config.js'
 import Code from '../components/Core.js'
 import { parseCommandString, extractPrompt, parseSize, url2Base64, preferRatioOverDefaultSize } from '../utils/utils.js'
 import { translate } from '../utils/translate.js'
-import { runDraw, sendResult, makeTicker, queueStatusText } from '../utils/draw.js'
+import { runDraw, sendResult, makeTicker, submitText } from '../utils/draw.js'
 import { lastDrawKey, saveLast } from '../utils/lastDraw.js'
 
 /** 图生图/改图 的命令头，取提示词时要剥掉 */
@@ -111,7 +111,7 @@ export class Text2img extends plugin {
     const started = Date.now()
     // 提交被接受后回调里发提示（带队列数）
     const onSubmit = async (info) => {
-      await e.reply(`图片已收到，已提交给 ComfyUI…${queueStatusText(info?.queue)}`, true)
+      await e.reply(submitText(info?.queue, '图片已收到'), true)
     }
     const result = await Code.img2img(params, Buffer.from(b64, 'base64'), makeTicker(e, config), onSubmit)
     const elapsed = (Date.now() - started) / 1000
