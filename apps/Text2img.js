@@ -3,7 +3,7 @@ import Config from '../components/Config.js'
 import Code from '../components/Core.js'
 import { parseCommandString, extractPrompt, parseSize, url2Base64, preferRatioOverDefaultSize } from '../utils/utils.js'
 import { translate } from '../utils/translate.js'
-import { runDraw, sendResult, makeTicker } from '../utils/draw.js'
+import { runDraw, sendResult, makeTicker, queueStatusText } from '../utils/draw.js'
 import { lastDrawKey, saveLast } from '../utils/lastDraw.js'
 
 /** 图生图/改图 的命令头，取提示词时要剥掉 */
@@ -86,8 +86,7 @@ export class Text2img extends plugin {
       return true
     }
 
-    await e.reply('已提交给 ComfyUI，正在生成…', true)
-
+    // 提示不在这里发：等提交被接受后由 runDraw 发，那时才能带上真实队列数
     const r = await runDraw(e, params, config)
     if (r.ok) this._remember(e, params, { raw: extractPrompt(e.msg), workflow: r.workflow, applied: r.parameters })
     return true
@@ -103,8 +102,6 @@ export class Text2img extends plugin {
       return true
     }
 
-    await e.reply('图片已收到，已提交给 ComfyUI…', true)
-
     const b64 = await url2Base64(url)
     if (!b64) {
       await e.reply('图片下载失败了，换一张试试')
@@ -112,7 +109,11 @@ export class Text2img extends plugin {
     }
 
     const started = Date.now()
-    const result = await Code.img2img(params, Buffer.from(b64, 'base64'), makeTicker(e, config))
+    // 提交被接受后回调里发提示（带队列数）
+    const onSubmit = async (info) => {
+      await e.reply(`图片已收到，已提交给 ComfyUI…${queueStatusText(info?.queue)}`, true)
+    }
+    const result = await Code.img2img(params, Buffer.from(b64, 'base64'), makeTicker(e, config), onSubmit)
     const elapsed = (Date.now() - started) / 1000
 
     if (!result.status) {

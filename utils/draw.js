@@ -34,6 +34,16 @@ export function formatSeconds(sec) {
   return `${n.toFixed(1)} 秒`
 }
 
+/**
+ * 提交成功那句提示后面的「队列尾巴」
+ * ahead = 前面还有多少任务（正在跑的 + 排队的，不含自己这条）
+ */
+export function queueStatusText(queue) {
+  if (!queue || typeof queue.ahead !== 'number') return ''
+  if (queue.ahead <= 0) return '（队列空闲，马上开始）'
+  return `（前面还有 ${queue.ahead} 个任务）`
+}
+
 /** 生成过程中每隔一会儿说一声，别让群里以为卡死了 */
 export function makeTicker(e, config) {
   const notify = Number(config?.notify_interval ?? 60)
@@ -102,9 +112,15 @@ export async function sendResult(e, result, config, elapsed) {
  * 真正跑一次：提交 → 等结果 → 审核 → 发出去
  * @returns {{ok: boolean, msg?: string, workflow?: string, parameters?: object}}
  */
-export async function runDraw(e, params, config, { checkNsfw = true } = {}) {
+export async function runDraw(e, params, config, { checkNsfw = true, submitPrefix = '已提交给 ComfyUI，正在生成…' } = {}) {
   const started = Date.now()
-  const result = await Code.text2img(params, makeTicker(e, config))
+
+  // 提交被接受后再报一句（这时能带上真实队列数了）
+  const onSubmit = async (info) => {
+    await e.reply(`${submitPrefix}${queueStatusText(info?.queue)}`, true)
+  }
+
+  const result = await Code.text2img(params, makeTicker(e, config), onSubmit)
   const elapsed = (Date.now() - started) / 1000
 
   if (!result.status) {

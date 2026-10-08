@@ -96,8 +96,12 @@ class Code {
     }
   }
 
-  /** 核心：把模板+参数跑成图片，返回 base64 */
-  async text2img(params = {}, onTick = null) {
+  /**
+   * 核心：把模板+参数跑成图片，返回 base64
+   * @param onTick 生成过程中定期回调（报进度）
+   * @param onSubmit 提交被接受时回调一次，参数里带队列情况
+   */
+  async text2img(params = {}, onTick = null, onSubmit = null) {
     const api = await this.getBase()
     if (!api) return { status: false, msg: '还没有配置 ComfyUI 接口（config.yaml 的 api_list）' }
 
@@ -143,6 +147,24 @@ class Code {
       }
       promptId = res.prompt_id
       if (!promptId) return { status: false, msg: '提交失败：ComfyUI 没返回 prompt_id' }
+
+      // 提交成功 → 顺手看一眼队列，好告诉用户前面还堆了多少（查失败不影响主流程）
+      let queue = null
+      try {
+        const q = await request(`${base}/queue`, { headers, timeout: 10000 })
+        const running = (q?.queue_running || []).length
+        const pending = (q?.queue_pending || []).length
+        queue = { running, pending, ahead: Math.max(0, running + pending - 1) }
+      } catch (err) {
+        console.error('[COMFYUI-PLUGIN] 查询队列失败（不影响出图）', err?.message)
+      }
+      if (onSubmit) {
+        try {
+          await onSubmit({ promptId, number: res.number, queue })
+        } catch (err) {
+          console.error('[COMFYUI-PLUGIN] onSubmit 回调出错', err?.message)
+        }
+      }
     } catch (error) {
       return { status: false, msg: this._err('提交工作流', error) }
     }
@@ -214,12 +236,12 @@ class Code {
   }
 
   /** 图生图：把引用图片传给工作流里的 LoadImage 节点 */
-  async img2img(params = {}, imageBuffer, onTick = null) {
+  async img2img(params = {}, imageBuffer, onTick = null, onSubmit = null) {
     const up = await this.uploadImage(imageBuffer, `yunzai_${Date.now()}.png`)
     if (!up.status) return up
     const name = up.data?.name
     if (!name) return { status: false, msg: '上传图片成功但没拿到文件名' }
-    return this.text2img({ ...params, image: name }, onTick)
+    return this.text2img({ ...params, image: name }, onTick, onSubmit)
   }
 
   /** 中断当前任务 */
