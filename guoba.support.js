@@ -138,7 +138,7 @@ export function supportGuoba() {
     {
       field: 'reply_params',
       label: '出图后附上参数',
-      bottomHelpMessage: '以转发消息的形式把本次用的提示词、种子等发出来',
+      bottomHelpMessage: '出图后附一张「本次出图参数」卡片（提示词、种子、步数等）。群里也能开关：#关闭出图参数 / #开启出图参数',
       component: 'Switch'
     },
 

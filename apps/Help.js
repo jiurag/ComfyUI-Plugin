@@ -73,7 +73,8 @@ export class Help extends plugin {
           { c: '#删除默认参数 --steps', d: '删掉某项默认参数' },
           { c: '#查看默认参数', d: '查看当前默认参数' },
           { c: '#工作流列表', d: '看有哪些工作流、当前用的是哪个' },
-          { c: '#用工作流 名字', d: '切换默认工作流（仅主人）' }
+          { c: '#用工作流 名字', d: '切换默认工作流（仅主人）' },
+          { c: '#开启出图参数 / #关闭出图参数', d: '出图后要不要附一张参数卡片（仅主人）' }
         ]
       },
       {
@@ -100,6 +101,7 @@ export class Help extends plugin {
       { k: '默认工作流', v: config.workflow || '未设置' },
       { k: '可用工作流', v: workflows.join('、') || '（空，把 API 格式 json 放进 config/workflows/）' },
       { k: '默认参数', v: drawText },
+      { k: '参数回执', v: config.reply_params !== false ? '开（出图后附参数卡片）' : '关' },
       { k: '进度提醒', v: Number(config.notify_interval) ? `每 ${config.notify_interval} 秒报一次` : '不打扰' }
     ]
 

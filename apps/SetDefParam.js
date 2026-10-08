@@ -15,7 +15,8 @@ export class SetDefParam extends plugin {
         { reg: '^#?删除默认参数([\\s\\S]*)$', fnc: 'delDefParam', dsc: '删除某项默认参数' },
         { reg: '^#?查看默认参数$', fnc: 'examDefParam', dsc: '查看当前默认参数' },
         { reg: '^#?工作流列表$', fnc: 'listWorkflow', dsc: '列出所有工作流模板' },
-        { reg: '^#?用工作流(\\s+.*)?$', fnc: 'setWorkflow', dsc: '切换默认工作流（仅主人）' }
+        { reg: '^#?用工作流(\\s+.*)?$', fnc: 'setWorkflow', dsc: '切换默认工作流（仅主人）' },
+        { reg: '^#?(开启|关闭)(出图参数回执?|参数回执)$', fnc: 'setParamsReply', dsc: '出图参数回执开关（仅主人）' }
       ]
     })
   }
@@ -74,6 +75,28 @@ export class SetDefParam extends plugin {
       sections: [],
       config: keys.map((k) => ({ k, v: String(defDrawParams[k]) }))
     })
+    return true
+  }
+
+  /** 出图后的「本次出图参数」回执 开 / 关 */
+  async setParamsReply(e) {
+    if (!e.isMaster) {
+      await e.reply('只有主人才能改这个开关哦')
+      return true
+    }
+    const on = /开启/.test(e.msg)
+    const config = Config.getConfig() || {}
+    config.reply_params = on
+    if (!Config.setConfig(config)) {
+      await e.reply('写入失败，检查插件目录权限')
+      return true
+    }
+    await e.reply(
+      on
+        ? '好，出图后会照旧附上一张「本次出图参数」卡片（提示词、种子、步数这些）'
+        : '好，出图后不再发参数卡片了。想恢复随时发 #开启出图参数',
+      true
+    )
     return true
   }
 
