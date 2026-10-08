@@ -3,6 +3,9 @@
 # 注意：config/config/.keep 要留着 —— 没这个目录，插件第一次启动会读写配置失败
 config/config/*
 !config/config/.keep
+# 工作流模板属于各人自己的模型和口味，不往公开仓库里放（本地/服务器上照常保留）
+config/workflows/*.json
+!config/workflows/.keep
 resources/tmp/*
 !resources/tmp/.keep
 *.log
