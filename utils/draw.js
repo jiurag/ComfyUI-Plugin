@@ -39,21 +39,47 @@ export function makeTicker(e, config) {
 }
 
 export async function sendResult(e, result, config, elapsed) {
-  for (const file of result.data.files) {
+  const files = result.data.files || []
+  const segs = []
+  const tmpFiles = []
+
+  for (const file of files) {
     if (file.isVideo) {
       const p = `${pluginResources}/tmp/${Date.now()}_${file.filename}`
       fs.writeFileSync(p, Buffer.from(file.base64, 'base64'))
-      try {
-        await e.reply(segment.video(p.replace(/\\/g, '/')))
-      } catch (err) {
-        console.error('[COMFYUI-PLUGIN] 视频发送失败', err?.message)
-        await e.reply(`视频已生成但发送失败，文件在：${p}`)
-      }
-      setTimeout(() => fs.existsSync(p) && fs.unlinkSync(p), 300000)
+      tmpFiles.push(p)
+      segs.push(segment.video(p.replace(/\\/g, '/')))
     } else {
-      await e.reply(segment.image('base64://' + file.base64))
+      segs.push(segment.image('base64://' + file.base64))
     }
   }
+
+  if (segs.length) {
+    try {
+      let sent = false
+      if (segs.length > 1 && typeof Bot !== 'undefined' && typeof Bot.makeForwardMsg === 'function') {
+        try {
+          const uin = e?.self_id || e?.bot?.uin || ''
+          const nodes = segs.map((seg, i) => ({
+            user_id: uin,
+            nickname: String(files[i]?.filename || `第 ${i + 1} 张`).slice(0, 16),
+            message: [seg]
+          }))
+          await e.reply(await Bot.makeForwardMsg(nodes))
+          sent = true
+        } catch (err) {
+          console.error('[COMFYUI-PLUGIN] 合并转发失败，改用单条消息发', err?.message)
+        }
+      }
+      if (!sent) await e.reply(segs.length === 1 ? segs[0] : segs)
+    } catch (err) {
+      console.error('[COMFYUI-PLUGIN] 发送结果失败', err?.message)
+      await e.reply(
+        `结果已生成（${files.length} 张）但发送失败${tmpFiles.length ? `，文件在：${tmpFiles.join('、')}` : ''}`
+      )
+    }
+  }
+  for (const p of tmpFiles) setTimeout(() => fs.existsSync(p) && fs.unlinkSync(p), 300000)
 
   const mode = replyParamsMode(config)
 
